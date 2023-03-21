@@ -1,105 +1,104 @@
-import { Request } from 'express';
-import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken'
+import { Request } from "express";
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export interface IUserRequest extends Request {
-    user?: any
+  user?: any;
 }
 
 export interface IUser extends mongoose.Document {
-
-    name: string,
-    email: string,
-    password: string,
-    avatar?: string,
-    isAdmin: boolean,
-    token?: string,
-    refreshToken?: string,
-    createdAt: Date,
-    updatedAt: Date,
-    comparePassword(entredPassword: string): Promise<Boolean>,
-    getAccessToken(): Promise<string>,
-    getRefreshToken(): Promise<string>
+  name: string;
+  email: string;
+  password: string;
+  avatar?: string;
+  isAdmin: boolean;
+  token?: string;
+  refreshToken?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  comparePassword(entredPassword: string): Promise<Boolean>;
+  getAccessToken(): Promise<string>;
+  getRefreshToken(): Promise<string>;
 }
 
-const UserSchema = new mongoose.Schema({
-
+const UserSchema = new mongoose.Schema(
+  {
     name: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
 
     email: {
-        type: String,
-        required: true,
-        unique: true,
-        match: [
-            /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-            "Please fill a valid email address",
-        ],
+      type: String,
+      required: true,
+      unique: true,
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        "Please fill a valid email address",
+      ],
     },
 
     password: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
 
     avatar: {
-        type: String,
+      type: String,
     },
 
     isAdmin: {
-        type: Boolean,
-        default: false,
+      type: Boolean,
+      default: false,
     },
-    refreshToken: String
-
-}, {
-    timestamps: true
-});
+    refreshToken: String,
+  },
+  {
+    timestamps: true,
+  }
+);
 
 UserSchema.pre("save", async function (next) {
+  const user = this as IUser;
 
-    const user = this as IUser;
+  if (!user.isModified("password")) return next();
 
-    if (!user.isModified("password")) return next();
+  const salt = bcrypt.genSaltSync(10);
+  const hash = bcrypt.hashSync(user.password, salt);
 
-    const salt = bcrypt.genSaltSync(10);
-    const hash = bcrypt.hashSync(user.password, salt);
+  user.password = hash;
 
-    user.password = hash;
-
-    next();
-
-})
+  next();
+});
 
 UserSchema.methods.comparePassword = function (entredPassword: string) {
-    const user = this as IUser;
-    return bcrypt.compareSync(entredPassword, user.password);
-}
+  const user = this as IUser;
+  return bcrypt.compareSync(entredPassword, user.password);
+};
 
 UserSchema.methods.getAccessToken = function () {
-    return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN_SECRET as string, {
-        expiresIn: "1d",
-    });
+  const user = this as IUser;
+  return jwt.sign({ id: user._id }, 'h*L8%5J)JH)fFJXKW29(JaU!K*E8w#YagCs7&BZ6KCbJmprqCf', {
+    expiresIn: "1d",
+  });
 };
 
 UserSchema.methods.getRefreshToken = function () {
-    return jwt.sign(
-        {
-            UserInfor: {
-                username: this.username,
-                email: this.email,
-            },
-        },
-        process.env.REFRESH_TOKEN_SECRET as string,
-        {
-            expiresIn: "7d",
-        }
-    );
+  const user = this as IUser;
+  return jwt.sign(
+    {
+      UserInfor: {
+        name: user.name,
+        email: user.email,
+      },
+    },
+    'xGJ*ernUb!Y*u^m2m!2G4*AED)(qG$tC8KdHKTNzY4gtn&y7gm',
+    {
+      expiresIn: "7d",
+    }
+  );
 };
-
 
 const User = mongoose.model<IUser>("User", UserSchema);
 
